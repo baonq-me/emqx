@@ -1,6 +1,52 @@
 name: Build and publish Snap
 
 on:
+  workflow_call:
+    inputs:
+      profile:
+        required: true
+        type: string
+      publish:
+        required: true
+        type: boolean
+      notarize:
+        required: false
+        type: boolean
+        default: false
+      otp_vsn:
+        required: true
+        type: string
+      elixir_vsn:
+        required: true
+        type: string
+      builder_vsn:
+        required: true
+        type: string
+    secrets:
+      SNAPCRAFT_STORE_CREDENTIALS:
+        required: false
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_DEFAULT_REGION:
+        required: true
+      AWS_S3_BUCKET:
+        required: true
+      AWS_CLOUDFRONT_ID:
+        required: true
+      APPLE_ID_PASSWORD:
+        required: true
+      APPLE_DEVELOPER_IDENTITY:
+        required: true
+      APPLE_DEVELOPER_ID_BUNDLE:
+        required: true
+      APPLE_DEVELOPER_ID_BUNDLE_PASSWORD:
+        required: true
+      APPLE_DEVELOPER_ID_BUNDLE_NEW:
+        required: true
+      APPLE_DEVELOPER_ID_BUNDLE_PASSWORD_NEW:
+        required: true
   push:
     tags:
       - '[6-9].[0-9]*.[0-9]*'

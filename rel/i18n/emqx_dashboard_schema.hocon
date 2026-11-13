@@ -148,4 +148,59 @@ swagger_support.desc:
 
 swagger_support.label:
 """Swagger Support"""
+
+sso_proxy.desc:
+"""Passwordless dashboard login behind an authenticating reverse proxy (oauth2-proxy with `--pass-access-token`). EMQX verifies the forwarded OIDC access token (signature via JWKS, issuer, audience, expiry, role) and signs a normal dashboard token for a per-person user."""
+sso_proxy.label:
+"""SSO Proxy Login"""
+
+sso_proxy_enable.desc:
+"""Enable passwordless login through the reverse proxy."""
+sso_proxy_enable.label:
+"""Enable"""
+
+sso_proxy_password_login.desc:
+"""Default for allowing the username/password login form while SSO proxy login is enabled. The setting changed from the dashboard (`PUT /api/v5/sso_proxy/settings`) is stored in the database, replicated across the cluster, and takes precedence over this value."""
+sso_proxy_password_login.label:
+"""Allow Password Login"""
+
+sso_proxy_jwks_endpoint.desc:
+"""URL of the identity provider's JWKS document, e.g. `https://id.example.com/realms/x/protocol/openid-connect/certs`."""
+sso_proxy_jwks_endpoint.label:
+"""JWKS Endpoint"""
+
+sso_proxy_issuer.desc:
+"""Expected `iss` claim of the access token."""
+sso_proxy_issuer.label:
+"""Issuer"""
+
+sso_proxy_audience.desc:
+"""Expected client id: the token's `azp` claim, or a member of `aud`."""
+sso_proxy_audience.label:
+"""Audience"""
+
+sso_proxy_required_role.desc:
+"""Role the token must carry in `realm_access.roles` or `resource_access.<audience>.roles`. Empty means no role check."""
+sso_proxy_required_role.label:
+"""Required Role"""
+
+sso_proxy_username_claim.desc:
+"""Claim used as the dashboard username (lower-cased, characters other than `[a-z0-9_]` replaced by `_`)."""
+sso_proxy_username_claim.label:
+"""Username Claim"""
+
+sso_proxy_user_prefix.desc:
+"""Prefix of auto-created dashboard users."""
+sso_proxy_user_prefix.label:
+"""User Prefix"""
+
+sso_proxy_jwks_refresh_interval.desc:
+"""How long fetched JWKS keys are cached. An unknown key id triggers a re-fetch at most every 30 seconds."""
+sso_proxy_jwks_refresh_interval.label:
+"""JWKS Refresh Interval"""
+
+sso_proxy_logout_url.desc:
+"""Where the dashboard sends the browser after logout of an SSO user, through the proxy's `/oauth2/sign_out?rd=`. Usually the identity provider's end-session URL."""
+sso_proxy_logout_url.label:
+"""Logout URL"""
 }

@@ -68,8 +68,40 @@ fields("dashboard") ->
                     deprecated => {since, "5.1.0"},
                     importance => ?IMPORTANCE_HIDDEN
                 }
+            )},
+        {sso_proxy,
+            ?HOCON(
+                ?R_REF("sso_proxy"),
+                #{desc => ?DESC(sso_proxy), importance => ?IMPORTANCE_LOW}
             )}
     ] ++ sso_fields();
+fields("sso_proxy") ->
+    [
+        {enable, ?HOCON(boolean(), #{default => false, desc => ?DESC(sso_proxy_enable)})},
+        {password_login,
+            ?HOCON(boolean(), #{default => true, desc => ?DESC(sso_proxy_password_login)})},
+        {jwks_endpoint,
+            ?HOCON(binary(), #{default => <<>>, desc => ?DESC(sso_proxy_jwks_endpoint)})},
+        {issuer, ?HOCON(binary(), #{default => <<>>, desc => ?DESC(sso_proxy_issuer)})},
+        {audience, ?HOCON(binary(), #{default => <<>>, desc => ?DESC(sso_proxy_audience)})},
+        {required_role,
+            ?HOCON(binary(), #{default => <<>>, desc => ?DESC(sso_proxy_required_role)})},
+        {username_claim,
+            ?HOCON(binary(), #{
+                default => <<"preferred_username">>, desc => ?DESC(sso_proxy_username_claim)
+            })},
+        {user_prefix,
+            ?HOCON(binary(), #{
+                default => <<"sso_">>,
+                desc => ?DESC(sso_proxy_user_prefix),
+                validator => fun validate_user_prefix/1
+            })},
+        {jwks_refresh_interval,
+            ?HOCON(emqx_schema:timeout_duration_ms(), #{
+                default => <<"15m">>, desc => ?DESC(sso_proxy_jwks_refresh_interval)
+            })},
+        {logout_url, ?HOCON(binary(), #{default => <<>>, desc => ?DESC(sso_proxy_logout_url)})}
+    ];
 fields("listeners") ->
     [
         {"http",
@@ -224,6 +256,8 @@ desc("https") ->
     ?DESC(desc_https);
 desc("ssl_options") ->
     ?DESC(ssl_options);
+desc("sso_proxy") ->
+    ?DESC(sso_proxy);
 desc(_) ->
     undefined.
 
@@ -283,6 +317,12 @@ https_converter(undefined, _Opts) ->
     undefined;
 https_converter(Conf, Opts) ->
     convert_ssl_layout(Conf, Opts).
+
+validate_user_prefix(Prefix) ->
+    case re:run(Prefix, "^[_a-zA-Z0-9]{1,16}$", [{capture, none}]) of
+        match -> ok;
+        nomatch -> {error, "user_prefix must be 1-16 of [_a-zA-Z0-9]"}
+    end.
 
 convert_ssl_layout(Conf = #{<<"ssl_options">> := _}, _Opts) ->
     Conf;

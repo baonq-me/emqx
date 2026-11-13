@@ -365,7 +365,11 @@ check(undefined, _) ->
 check(_, undefined) ->
     {error, <<"password_not_provided">>};
 check(Username, Password) ->
+    SsoMarker = emqx_dashboard_sso_proxy:sso_pwd_marker(),
     case lookup_user(Username) of
+        [#?ADMIN{pwdhash = SsoMarker}] ->
+            %% SSO-proxy users have no password
+            {error, <<"password_error">>};
         [#?ADMIN{pwdhash = PwdHash} = User] ->
             case verify_hash(Password, PwdHash) of
                 ok -> {ok, User};

@@ -109,6 +109,10 @@ pre_config_update(_Path, {change_i18n_lang, NewLang}, RawConf) ->
     Update = #{<<"i18n_lang">> => NewLang},
     NewConf = emqx_utils_maps:deep_merge(RawConf, Update),
     {ok, NewConf};
+pre_config_update(_Path, {sso_proxy_password_login, Allow}, RawConf) when is_boolean(Allow) ->
+    %% e.g. emqx_conf:update([dashboard], {sso_proxy_password_login, false}, #{}).
+    Update = #{<<"sso_proxy">> => #{<<"password_login">> => Allow}},
+    {ok, emqx_utils_maps:deep_merge(RawConf, Update)};
 pre_config_update(_Path, UpdateConf0, RawConf) ->
     UpdateConf = remove_sensitive_data(UpdateConf0),
     NewConf = emqx_utils_maps:deep_merge(RawConf, UpdateConf),
@@ -116,6 +120,8 @@ pre_config_update(_Path, UpdateConf0, RawConf) ->
 
 post_config_update(_, {change_i18n_lang, _}, _NewConf, _OldConf, _AppEnvs) ->
     emqx_dashboard:regenerate_dispatch_after_config_update();
+post_config_update(_, {sso_proxy_password_login, _}, _NewConf, _OldConf, _AppEnvs) ->
+    ok;
 post_config_update(_, _Req, NewConf, OldConf, _AppEnvs) ->
     SwaggerSupport = diff_swagger_support(NewConf, OldConf),
     OldHttp = get_listener(http, OldConf),

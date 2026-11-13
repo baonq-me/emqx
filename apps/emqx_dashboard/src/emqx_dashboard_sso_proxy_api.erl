@@ -165,14 +165,8 @@ not_allowed() ->
     {409, 'NOT_ALLOWED', <<"Password login can only be disabled from an SSO session">>}.
 
 update_password_login(Allow, Caller) ->
-    case
-        emqx_conf:update(
-            [dashboard],
-            {sso_proxy_password_login, Allow},
-            #{override_to => cluster}
-        )
-    of
-        {ok, _} ->
+    case emqx_dashboard_sso_proxy:set_password_login(Allow) of
+        ok ->
             ?SLOG(warning, #{
                 msg => "dashboard_sso_proxy_password_login_changed",
                 password_login => Allow,

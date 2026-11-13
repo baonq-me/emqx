@@ -61,6 +61,7 @@ end_per_suite(Config) ->
 init_per_testcase(_Case, Config) ->
     write_jwks(Config, [{?KID, ?config(key, Config)}]),
     emqx_dashboard_sso_proxy:clear_jwks_cache(),
+    _ = mnesia:dirty_delete(emqx_dashboard_sso_proxy_setting, password_login),
     set_conf(Config, #{}),
     Config.
 
@@ -323,22 +324,29 @@ t_settings_lockout_guard(Config) ->
 
 t_settings_persist_cluster(Config) ->
     {200, #{<<"token">> := SsoTok}} = sso_login(token(Config)),
+    RawBefore = emqx_config:get_raw([dashboard]),
     ?assertMatch(
         {200, #{<<"password_login">> := false}},
         req(put, "sso_proxy/settings", bearer(SsoTok), #{password_login => false})
     ),
-    ?assertEqual(false, emqx:get_config([dashboard, sso_proxy, password_login])),
-    ?assertEqual(
-        false,
-        emqx_utils_maps:deep_get(
-            [<<"sso_proxy">>, <<"password_login">>],
-            emqx_config:get_raw([dashboard])
-        )
+    %% stored in the replicated table, not in the config (cluster.hocon would also receive
+    %% the env-supplied default_password, and would break an upstream rollback)
+    ?assertMatch(
+        [{emqx_dashboard_sso_proxy_setting, password_login, false}],
+        mnesia:dirty_read(emqx_dashboard_sso_proxy_setting, password_login)
     ),
+    ?assertEqual(RawBefore, emqx_config:get_raw([dashboard])),
+    ?assertEqual(true, emqx:get_config([dashboard, sso_proxy, password_login])),
+    ?assertNot(emqx_dashboard_sso_proxy:password_login_allowed()),
+    %% the table wins over the config default in both directions
+    set_conf(Config, #{password_login => true}),
+    ?assertNot(emqx_dashboard_sso_proxy:password_login_allowed()),
     ?assertMatch(
         {200, #{<<"password_login">> := true}},
         req(put, "sso_proxy/settings", bearer(SsoTok), #{password_login => true})
-    ).
+    ),
+    set_conf(Config, #{password_login => false}),
+    ?assert(emqx_dashboard_sso_proxy:password_login_allowed()).
 
 t_logout_url_in_status(_Config) ->
     ?assertMatch(

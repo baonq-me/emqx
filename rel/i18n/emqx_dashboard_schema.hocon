@@ -160,7 +160,7 @@ sso_proxy_enable.label:
 """Enable"""
 
 sso_proxy_password_login.desc:
-"""Allow the username/password login form while SSO proxy login is enabled. Change it from the dashboard or `PUT /api/v5/sso_proxy/settings`; do not set it through an environment variable, which would override the dashboard setting."""
+"""Default for allowing the username/password login form while SSO proxy login is enabled. The setting changed from the dashboard (`PUT /api/v5/sso_proxy/settings`) is stored in the database, replicated across the cluster, and takes precedence over this value."""
 sso_proxy_password_login.label:
 """Allow Password Login"""
 

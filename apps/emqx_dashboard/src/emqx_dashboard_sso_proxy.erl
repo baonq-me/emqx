@@ -24,6 +24,8 @@
 -include_lib("emqx/include/logger.hrl").
 
 -export([
+    create_tables/0,
+    set_password_login/1,
     config/0,
     enabled/0,
     password_login_allowed/0,
@@ -40,6 +42,12 @@
 -endif.
 
 -define(SSO_PWD_MARKER, <<"!sso_proxy">>).
+%% Runtime settings changed from the dashboard (password_login). Kept in a replicated
+%% table rather than cluster.hocon: emqx_conf:update/3 on the dashboard root would persist
+%% the whole root, env-supplied default_password included, and a cluster.hocon with
+%% dashboard.sso_proxy would stop an upstream EMQX from booting after a rollback.
+-define(SETTING_TAB, emqx_dashboard_sso_proxy_setting).
+-record(?SETTING_TAB, {key :: atom(), value :: term()}).
 -define(JWKS_KEY, {?MODULE, jwks}).
 -define(MIN_REFETCH_MS, 30000).
 -define(LEEWAY_S, 30).
@@ -56,11 +64,40 @@ config() ->
 enabled() ->
     maps:get(enable, config(), false) =:= true.
 
-%% Password login is only ever restricted when the feature is enabled.
+create_tables() ->
+    ok = mria:create_table(?SETTING_TAB, [
+        {type, set},
+        {rlog_shard, ?DASHBOARD_SHARD},
+        {storage, disc_copies},
+        {record_name, ?SETTING_TAB},
+        {attributes, record_info(fields, ?SETTING_TAB)}
+    ]),
+    [?SETTING_TAB].
+
+%% Password login is only ever restricted when the feature is enabled. The dashboard
+%% setting (table) wins over the config value, which is only the default.
 password_login_allowed() ->
     Conf = config(),
-    not (maps:get(enable, Conf, false) =:= true andalso
-        maps:get(password_login, Conf, true) =:= false).
+    Default = maps:get(password_login, Conf, true),
+    Value =
+        case ets:whereis(?SETTING_TAB) of
+            undefined ->
+                Default;
+            _ ->
+                case ets:lookup(?SETTING_TAB, password_login) of
+                    [#?SETTING_TAB{value = V}] when is_boolean(V) -> V;
+                    _ -> Default
+                end
+        end,
+    not (maps:get(enable, Conf, false) =:= true andalso Value =:= false).
+
+-spec set_password_login(boolean()) -> ok | {error, term()}.
+set_password_login(Allow) when is_boolean(Allow) ->
+    Rec = #?SETTING_TAB{key = password_login, value = Allow},
+    case mria:transaction(?DASHBOARD_SHARD, fun() -> mnesia:write(Rec) end) of
+        {atomic, ok} -> ok;
+        {aborted, Reason} -> {error, Reason}
+    end.
 
 sso_pwd_marker() -> ?SSO_PWD_MARKER.
 

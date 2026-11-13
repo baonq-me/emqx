@@ -78,7 +78,10 @@ schema("/login") ->
             'requestBody' => fields([username, password]),
             responses => #{
                 200 => fields([role, token, version, license]),
-                401 => response_schema(401)
+                401 => response_schema(401),
+                403 => emqx_dashboard_swagger:error_codes(
+                    ['PASSWORD_LOGIN_DISABLED'], ?DESC(login_failed401)
+                )
             },
             security => []
         }
@@ -218,7 +221,20 @@ field(backend) ->
 %% -------------------------------------------------------------------------------------------------
 %% API
 
-login(post, #{body := Params}) ->
+login(post, #{body := Params} = Req) ->
+    case emqx_dashboard_sso_proxy:password_login_allowed() of
+        true ->
+            password_login(Req);
+        false ->
+            ?SLOG(info, #{
+                msg => "dashboard_login_failed",
+                username => maps:get(<<"username">>, Params, undefined),
+                reason => password_login_disabled
+            }),
+            {403, 'PASSWORD_LOGIN_DISABLED', <<"Password login is disabled; sign in with SSO">>}
+    end.
+
+password_login(#{body := Params}) ->
     Username = maps:get(<<"username">>, Params),
     Password = maps:get(<<"password">>, Params),
     minirest_handler:update_log_meta(#{log_from => dashboard, log_source => Username}),

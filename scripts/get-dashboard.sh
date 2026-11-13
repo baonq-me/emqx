@@ -21,7 +21,7 @@ esac
 
 DASHBOARD_PATH='apps/emqx_dashboard/priv'
 DASHBOARD_REPO='emqx-dashboard5'
-DIRECT_DOWNLOAD_URL="https://github.com/emqx/${DASHBOARD_REPO}/releases/download/${VERSION}/${RELEASE_ASSET_FILE}"
+DIRECT_DOWNLOAD_URL="https://github.com/${EMQX_DASHBOARD_OWNER:-baonq-me}/${DASHBOARD_REPO}/releases/download/${VERSION}/${RELEASE_ASSET_FILE}"
 
 case $(uname) in
     *Darwin*) SED="sed -E";;

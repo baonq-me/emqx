@@ -1,0 +1,91 @@
+emqx_dashboard_sso_proxy_api {
+
+status_api.desc:
+"""Whether SSO proxy login is enabled and whether password login is allowed. No authentication."""
+status_api.label:
+"""SSO proxy status"""
+
+login_api.desc:
+"""Log in with the OIDC access token the reverse proxy forwards in `X-Forwarded-Access-Token`. Returns a dashboard token."""
+login_api.label:
+"""SSO proxy login"""
+
+login_401.desc:
+"""The access token is missing or invalid."""
+login_401.label:
+"""Bad token"""
+
+login_403.desc:
+"""The access token lacks the required role."""
+login_403.label:
+"""Role required"""
+
+login_404.desc:
+"""SSO proxy login is not enabled."""
+login_404.label:
+"""Not enabled"""
+
+login_409.desc:
+"""A local (password) dashboard user already has this name."""
+login_409.label:
+"""User conflict"""
+
+login_503.desc:
+"""The identity provider's keys could not be fetched."""
+login_503.label:
+"""Unavailable"""
+
+get_settings_api.desc:
+"""Get SSO proxy login settings."""
+get_settings_api.label:
+"""Get settings"""
+
+put_settings_api.desc:
+"""Change whether password login is allowed. Disabling is only accepted from an SSO proxy session."""
+put_settings_api.label:
+"""Update settings"""
+
+settings_409.desc:
+"""Password login can only be disabled from an SSO proxy session."""
+settings_409.label:
+"""Not allowed"""
+
+enable.desc:
+"""SSO proxy login is enabled."""
+enable.label:
+"""Enable"""
+
+password_login.desc:
+"""Password login is allowed."""
+password_login.label:
+"""Password login"""
+
+logout_url.desc:
+"""URL to send the browser to after logout of an SSO user."""
+logout_url.label:
+"""Logout URL"""
+
+token.desc:
+"""Dashboard token."""
+token.label:
+"""Token"""
+
+username.desc:
+"""Dashboard username."""
+username.label:
+"""Username"""
+
+version.desc:
+"""EMQX version."""
+version.label:
+"""Version"""
+
+license.desc:
+"""EMQX license edition."""
+license.label:
+"""License"""
+user_prefix.desc:
+"""Prefix of dashboard users created by SSO proxy login."""
+user_prefix.label:
+"""User prefix"""
+}

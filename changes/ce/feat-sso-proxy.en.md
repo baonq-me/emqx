@@ -1,0 +1,1 @@
+Added passwordless Dashboard login behind an authenticating reverse proxy (`dashboard.sso_proxy`). EMQX verifies the OIDC access token forwarded by oauth2-proxy (`X-Forwarded-Access-Token`) against the identity provider's JWKS, creates a per-person dashboard user and returns a normal dashboard token. Password login can be switched off from the Dashboard.

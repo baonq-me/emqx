@@ -130,11 +130,23 @@ authenticate(
         auth_method := AuthMethod,
         auth_data := AuthData,
         auth_cache := AuthCache
-    },
+    } = Credential,
     State
 ) ->
-    RetrieveFun = fun(Username) ->
-        retrieve(Username, State)
+    %% Bind the SCRAM identity (`n=' in client-first) to the MQTT CONNECT username.
+    %% Authorization (e.g. ACL `${username}') uses the CONNECT username, so without this
+    %% check a SCRAM user could authenticate as itself and act as any other username.
+    %% A mismatch or a missing CONNECT username is treated like an unknown user.
+    ConnUsername = maps:get(username, Credential, undefined),
+    RetrieveFun = fun
+        (Username) when Username =:= ConnUsername ->
+            retrieve(Username, State);
+        (Username) ->
+            ?TRACE_AUTHN_PROVIDER("scram_username_mismatch", #{
+                scram_username => Username,
+                username => ConnUsername
+            }),
+            {error, username_mismatch}
     end,
     OnErrFun = fun(Msg, Reason) ->
         ?TRACE_AUTHN_PROVIDER(Msg, #{

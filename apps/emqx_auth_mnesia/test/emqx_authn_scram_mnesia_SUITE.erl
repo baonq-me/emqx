@@ -112,6 +112,7 @@ t_authenticate(_Config) ->
     ConnectPacket = ?CONNECT_PACKET(
         #mqtt_packet_connect{
             proto_ver = ?MQTT_PROTO_V5,
+            username = Username,
             properties = #{
                 'Authentication-Method' => <<"SCRAM-SHA-512">>,
                 'Authentication-Data' => ClientFirstMessage
@@ -220,6 +221,7 @@ t_authenticate_bad_password(_Config) ->
     ConnectPacket = ?CONNECT_PACKET(
         #mqtt_packet_connect{
             proto_ver = ?MQTT_PROTO_V5,
+            username = Username,
             properties = #{
                 'Authentication-Method' => <<"SCRAM-SHA-512">>,
                 'Authentication-Data' => ClientFirstMessage
@@ -255,6 +257,68 @@ t_authenticate_bad_password(_Config) ->
     ok = emqx_authn_mqtt_test_client:send(Pid, AuthContinuePacket),
 
     ?CONNACK_PACKET(?RC_NOT_AUTHORIZED) = receive_packet().
+
+t_authenticate_username_mismatch(_Config) ->
+    Algorithm = sha512,
+    Username = <<"u">>,
+    Password = <<"p">>,
+    init_auth(Username, Password, Algorithm),
+    init_auth_user(<<"other">>, <<"p2">>),
+
+    %% valid SCRAM credentials of `u', but CONNECT claims to be another (existing) user
+    ?assertEqual(?RC_NOT_AUTHORIZED, connect_scram(Username, <<"other">>)),
+    %% ... or a user that does not exist
+    ?assertEqual(?RC_NOT_AUTHORIZED, connect_scram(Username, <<"nobody">>)),
+    %% ... or no CONNECT username at all
+    ?assertEqual(?RC_NOT_AUTHORIZED, connect_scram(Username, undefined)),
+    %% the case of the username matters
+    ?assertEqual(?RC_NOT_AUTHORIZED, connect_scram(Username, <<"U">>)).
+
+t_authenticate_username_mismatch_direct(_Config) ->
+    {ok, State} = emqx_authn_scram_mnesia:create(<<"id">>, config()),
+    {ok, _} = emqx_authn_scram_mnesia:add_user(
+        #{user_id => <<"u">>, password => <<"p">>}, State
+    ),
+    ClientFirstMessage = sasl_auth_scram:client_first_message(<<"u">>),
+    Credential = #{
+        auth_method => <<"SCRAM-SHA-512">>,
+        auth_data => ClientFirstMessage,
+        auth_cache => #{}
+    },
+    %% no challenge is issued when the names differ, exactly like an unknown user
+    ?assertEqual(
+        ignore,
+        emqx_authn_scram_mnesia:authenticate(Credential#{username => <<"x">>}, State)
+    ),
+    ?assertEqual(ignore, emqx_authn_scram_mnesia:authenticate(Credential, State)),
+    ?assertMatch(
+        {continue, _, _},
+        emqx_authn_scram_mnesia:authenticate(Credential#{username => <<"u">>}, State)
+    ),
+    ok = emqx_authn_scram_mnesia:destroy(State).
+
+connect_scram(ScramUsername, ConnectUsername) ->
+    {ok, Pid} = emqx_authn_mqtt_test_client:start_link("127.0.0.1", 1883),
+    ConnectPacket = ?CONNECT_PACKET(
+        #mqtt_packet_connect{
+            proto_ver = ?MQTT_PROTO_V5,
+            username = ConnectUsername,
+            properties = #{
+                'Authentication-Method' => <<"SCRAM-SHA-512">>,
+                'Authentication-Data' => sasl_auth_scram:client_first_message(ScramUsername)
+            }
+        }
+    ),
+    ok = emqx_authn_mqtt_test_client:send(Pid, ConnectPacket),
+    ?CONNACK_PACKET(RC) = receive_packet(),
+    RC.
+
+init_auth_user(Username, Password) ->
+    {ok, [#{state := State}]} = emqx_authn_chains:list_authenticators(?GLOBAL),
+    {ok, _} = emqx_authn_scram_mnesia:add_user(
+        #{user_id => Username, password => Password}, State
+    ),
+    ok.
 
 t_destroy(_) ->
     Config = config(),
@@ -338,6 +402,7 @@ t_update_user_keys(_Config) ->
     ConnectPacket = ?CONNECT_PACKET(
         #mqtt_packet_connect{
             proto_ver = ?MQTT_PROTO_V5,
+            username = Username,
             properties = #{
                 'Authentication-Method' => <<"SCRAM-SHA-512">>,
                 'Authentication-Data' => ClientFirstMessage
@@ -452,6 +517,7 @@ test_is_superuser(UserInfo, ExpectedIsSuperuser) ->
     {continue, ServerFirstMessage, ServerCache} =
         emqx_authn_scram_mnesia:authenticate(
             #{
+                username => Username,
                 auth_method => <<"SCRAM-SHA-512">>,
                 auth_data => ClientFirstMessage,
                 auth_cache => #{}
@@ -472,6 +538,7 @@ test_is_superuser(UserInfo, ExpectedIsSuperuser) ->
     {ok, UserInfo1, ServerFinalMessage} =
         emqx_authn_scram_mnesia:authenticate(
             #{
+                username => Username,
                 auth_method => <<"SCRAM-SHA-512">>,
                 auth_data => ClientFinalMessage,
                 auth_cache => ServerCache
